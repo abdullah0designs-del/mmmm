@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>عربيكا</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container" id="home">
+    <h1>منصة عربيكا</h1>
+    <button onclick="showRegister()">إنشاء حساب</button>
+    <button onclick="showLogin()">تسجيل دخول</button>
+  </div>
+
+  <!-- صفحة إنشاء حساب -->
+  <div class="container hidden" id="register">
+    <h2>إنشاء حساب</h2>
+
+    <input type="text" id="name" placeholder="الاسم الكامل">
+    
+    <select id="grade">
+      <option value="">اختر الصف الدراسي</option>
+      <option>الصف الأول الثانوي</option>
+      <option>الصف الثاني الثانوي</option>
+      <option>الصف الثالث الثانوي</option>
+    </select>
+
+    <select id="governorate">
+      <option value="">اختر المحافظة</option>
+    </select>
+
+    <input type="text" id="phone" placeholder="رقم الهاتف">
+    <input type="text" id="parentPhone" placeholder="رقم هاتف ولي الأمر">
+    <input type="password" id="password" placeholder="كلمة المرور">
+
+    <button onclick="register()">تسجيل</button>
+    <button class="secondary" onclick="goHome()">رجوع</button>
+  </div>
+
+  <!-- صفحة تسجيل الدخول -->
+  <div class="container hidden" id="login">
+    <h2>تسجيل الدخول</h2>
+
+    <input type="text" id="loginPhone" placeholder="رقم الهاتف">
+    <input type="password" id="loginPassword" placeholder="كلمة المرور">
+
+    <button onclick="login()">دخول</button>
+    <button class="secondary" onclick="goHome()">رجوع</button>
+  </div>
+
+  <!-- صفحة البيانات -->
+  <div class="container hidden" id="profile">
+    <h2>بياناتك</h2>
+    <p id="profileData"></p>
+
+    <h1 class="big-text">جاري تجهيز منصة الأستاذ أشرف عبد الرحمن</h1>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
