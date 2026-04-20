@@ -1,62 +1,542 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <title>عربيكا</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مقر الشركة الافتراضي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; }
+        #game-board {
+            background-image: radial-gradient(#e5e7eb 2px, transparent 2px);
+            background-size: 40px 40px;
+            background-color: #f3f4f6;
+        }
+        .avatar {
+            transition: left 0.1s linear, top 0.1s linear;
+        }
+        .desk-zone {
+            border: 2px dashed #9ca3af;
+            background-color: rgba(255, 255, 255, 0.5);
+        }
+    </style>
 </head>
-<body>
+<body class="bg-gray-100 h-screen w-screen flex items-center justify-center">
 
-  <div class="container" id="home">
-    <h1>منصة عربيكا</h1>
-    <button onclick="showRegister()">إنشاء حساب</button>
-    <button onclick="showLogin()">تسجيل دخول</button>
-  </div>
+    <!-- شاشة التحميل الأولية للاتصال بـ Firebase -->
+    <div id="loading-screen" class="bg-white p-8 rounded-2xl shadow-xl w-11/12 max-w-md text-center z-[60] absolute flex flex-col items-center justify-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-gray-600">جاري الاتصال بخوادم الشركة...</p>
+    </div>
 
-  <!-- صفحة إنشاء حساب -->
-  <div class="container hidden" id="register">
-    <h2>إنشاء حساب</h2>
+    <!-- شاشة تسجيل الدخول -->
+    <div id="login-screen" class="hidden bg-white p-8 rounded-2xl shadow-xl w-11/12 max-w-md text-center z-50 absolute">
+        <div class="mb-6">
+            <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span class="text-4xl text-white">🏢</span>
+            </div>
+            <h1 class="text-2xl font-bold text-gray-800">بوابة الشركة</h1>
+            <p class="text-gray-500 text-sm mt-2">يرجى إدخال كود الحضور الخاص بك</p>
+        </div>
+        
+        <div class="mb-4 text-sm text-right bg-blue-50 p-3 rounded-lg text-blue-800">
+            <strong>أكواد للتجربة:</strong><br>
+            - أحمد (المدير): 1111<br>
+            - سارة (مطور): 2222<br>
+            - محمود (مصمم): 3333
+        </div>
 
-    <input type="text" id="name" placeholder="الاسم الكامل">
-    
-    <select id="grade">
-      <option value="">اختر الصف الدراسي</option>
-      <option>الصف الأول الثانوي</option>
-      <option>الصف الثاني الثانوي</option>
-      <option>الصف الثالث الثانوي</option>
-    </select>
+        <input type="text" id="emp-code" placeholder="أدخل الكود هنا..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4 text-center text-lg" autocomplete="off">
+        <button onclick="window.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+            تسجيل الحضور والدخول
+        </button>
+        <p id="login-error" class="text-red-500 text-sm mt-3 hidden">الكود غير صحيح، حاول مرة أخرى.</p>
+    </div>
 
-    <select id="governorate">
-      <option value="">اختر المحافظة</option>
-    </select>
+    <!-- واجهة الشركة (الخريطة) -->
+    <div id="app-screen" class="hidden w-full h-full flex flex-col relative">
+        
+        <!-- الشريط العلوي -->
+        <div class="bg-white shadow-md p-4 flex justify-between items-center z-10">
+            <div class="flex items-center gap-3">
+                <div id="user-avatar-display" class="text-3xl bg-gray-100 p-2 rounded-full">👨‍💼</div>
+                <div>
+                    <h2 id="user-name-display" class="font-bold text-gray-800">الاسم</h2>
+                    <p id="user-role-display" class="text-xs text-gray-500">الوظيفة</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-green-500 text-sm font-bold flex items-center gap-1">
+                    <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> متصل بالشبكة
+                </span>
+                <button onclick="window.logout()" class="text-red-500 hover:text-red-700 text-sm font-bold">تسجيل خروج</button>
+            </div>
+        </div>
 
-    <input type="text" id="phone" placeholder="رقم الهاتف">
-    <input type="text" id="parentPhone" placeholder="رقم هاتف ولي الأمر">
-    <input type="password" id="password" placeholder="كلمة المرور">
+        <!-- خريطة الشركة -->
+        <div id="game-board" class="flex-1 relative overflow-hidden">
+            <!-- سيتم إضافة المكاتب والشخصيات هنا بواسطة جافاسكريبت -->
+        </div>
 
-    <button onclick="register()">تسجيل</button>
-    <button class="secondary" onclick="goHome()">رجوع</button>
-  </div>
+        <!-- أزرار التحكم للموبايل -->
+        <div class="absolute bottom-6 left-6 grid grid-cols-3 gap-2 z-10 md:hidden bg-white/70 p-2 rounded-xl">
+            <div></div>
+            <button onmousedown="window.startMove('up')" onmouseup="window.stopMove()" ontouchstart="window.startMove('up')" ontouchend="window.stopMove()" class="bg-gray-800 text-white p-3 rounded-lg">⬆️</button>
+            <div></div>
+            <button onmousedown="window.startMove('left')" onmouseup="window.stopMove()" ontouchstart="window.startMove('left')" ontouchend="window.stopMove()" class="bg-gray-800 text-white p-3 rounded-lg">⬅️</button>
+            <button onmousedown="window.startMove('down')" onmouseup="window.stopMove()" ontouchstart="window.startMove('down')" ontouchend="window.stopMove()" class="bg-gray-800 text-white p-3 rounded-lg">⬇️</button>
+            <button onmousedown="window.startMove('right')" onmouseup="window.stopMove()" ontouchstart="window.startMove('right')" ontouchend="window.stopMove()" class="bg-gray-800 text-white p-3 rounded-lg">➡️</button>
+        </div>
 
-  <!-- صفحة تسجيل الدخول -->
-  <div class="container hidden" id="login">
-    <h2>تسجيل الدخول</h2>
+        <!-- زر المحادثة السريع -->
+        <button id="action-btn" onclick="window.openChat()" class="hidden absolute bottom-6 right-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg z-20 flex items-center gap-2 transition transform hover:scale-105">
+            <span>💬</span> تحدث مع <span id="action-name">...</span>
+        </button>
 
-    <input type="text" id="loginPhone" placeholder="رقم الهاتف">
-    <input type="password" id="loginPassword" placeholder="كلمة المرور">
+        <!-- نافذة المحادثة -->
+        <div id="chat-window" class="hidden absolute bottom-24 right-6 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 flex flex-col z-30">
+            <div class="bg-blue-600 text-white p-3 rounded-t-xl flex justify-between items-center">
+                <span class="font-bold flex items-center gap-2"><span id="chat-emoji"></span> <span id="chat-title">المحادثة</span></span>
+                <button onclick="window.closeChat()" class="text-white hover:text-red-200">✖</button>
+            </div>
+            <div id="chat-messages" class="h-64 overflow-y-auto p-4 flex flex-col gap-3 bg-gray-50">
+                <div class="text-center text-xs text-gray-400 my-2">بدء المحادثة السحابية</div>
+                <!-- الرسائل ستظهر هنا -->
+            </div>
+            <div class="p-3 border-t flex gap-2">
+                <input type="text" id="chat-input" onkeypress="window.handleChatEnter(event)" placeholder="اكتب رسالة..." class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <button onclick="window.sendMessage()" class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700">إرسال</button>
+            </div>
+        </div>
+    </div>
 
-    <button onclick="login()">دخول</button>
-    <button class="secondary" onclick="goHome()">رجوع</button>
-  </div>
+    <!-- استيراد مكاتب Firebase عبر Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-  <!-- صفحة البيانات -->
-  <div class="container hidden" id="profile">
-    <h2>بياناتك</h2>
-    <p id="profileData"></p>
+        // إعدادات Firebase الخاصة بك
+        const firebaseConfig = {
+            apiKey: "AIzaSyCa5MsengO2YLoYUsIegQFfHY-BjwAQ-t0",
+            authDomain: "abas-73006.firebaseapp.com",
+            projectId: "abas-73006",
+            storageBucket: "abas-73006.firebasestorage.app",
+            messagingSenderId: "808083792981",
+            appId: "1:808083792981:web:376627faae7c6c942aa0dc",
+            measurementId: "G-T7F2KCM5W8"
+        };
 
-    <h1 class="big-text">جاري تجهيز منصة الأستاذ أشرف عبد الرحمن</h1>
-  </div>
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-  <script src="script.js"></script>
+        // مسارات الحفظ في Firestore (وفقاً للتعليمات الأمنية)
+        const projectPathId = "abas-73006";
+        const usersCollectionPath = `artifacts/${projectPathId}/public/data/users`;
+        const messagesCollectionPath = `artifacts/${projectPathId}/public/data/messages`;
+
+        // قاعدة بيانات المكاتب الثابتة
+        const employeesInfo = {
+            '1111': { id: 'emp1', name: 'أحمد', role: 'المدير التنفيذي', emoji: '👨‍💼', deskX: 10, deskY: 10, color: 'border-blue-500' },
+            '2222': { id: 'emp2', name: 'سارة', role: 'مطور برمجيات', emoji: '👩‍💻', deskX: 70, deskY: 20, color: 'border-green-500' },
+            '3333': { id: 'emp3', name: 'محمود', role: 'مصمم واجهات', emoji: '👨‍🎨', deskX: 20, deskY: 70, color: 'border-purple-500' }
+        };
+
+        let myAuthUid = null;
+        let currentUserData = null;
+        let currentX = 0;
+        let currentY = 0;
+        let lastSentX = 0;
+        let lastSentY = 0;
+        
+        let activeUsers = {}; // لتخزين الأشخاص المتصلين حالياً
+        let activeChatUser = null;
+        let loadedMessagesIds = new Set();
+        
+        let moveInterval;
+        let syncInterval;
+        let speed = 1.5; 
+        let keys = {};
+
+        // 1. الاتصال المبدئي بـ Firebase
+        async function initFirebase() {
+            try {
+                // المحاولة الأولى مع التوكن المخصص للبيئة إن وجد، أو الدخول المجهول كبديل
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (e) {
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        myAuthUid = user.uid;
+                        // إخفاء شاشة التحميل وإظهار شاشة الدخول
+                        document.getElementById('loading-screen').classList.add('hidden');
+                        document.getElementById('login-screen').classList.remove('hidden');
+                    }
+                });
+            } catch (error) {
+                console.error("خطأ في الاتصال بخوادم Firebase:", error);
+                
+                let errorMsg = "فشل الاتصال بالخادم. يرجى التأكد من اتصالك بالإنترنت.";
+                
+                // رسالة مخصصة لخطأ إعدادات Firebase
+                if (error.code === 'auth/admin-restricted-operation' || error.code === 'auth/operation-not-allowed') {
+                    errorMsg = `
+                        <strong>تسجيل الدخول غير مفعل!</strong><br><br>
+                        يرجى التوجه إلى لوحة تحكم Firebase الخاصة بك:<br>
+                        1. افتح <b>Authentication</b><br>
+                        2. اختر تبويب <b>Sign-in method</b><br>
+                        3. قم بتفعيل <b>Anonymous</b> (تسجيل الدخول المجهول).
+                    `;
+                }
+
+                // عرض الخطأ على الشاشة بدلاً من إيقاف البرنامج صامتاً أو استخدام alert
+                document.getElementById('loading-screen').innerHTML = `
+                    <div class="text-red-500 text-6xl mb-4">⚠️</div>
+                    <h2 class="text-xl font-bold text-gray-800 mb-2">إعدادات Firebase غير مكتملة</h2>
+                    <p class="text-gray-600 text-sm mb-4 text-center leading-relaxed max-w-xs">${errorMsg}</p>
+                    <button onclick="location.reload()" class="bg-gray-200 text-gray-800 px-4 py-2 rounded hover:bg-gray-300 transition">إعادة المحاولة</button>
+                `;
+            }
+        }
+        initFirebase();
+
+        // 2. تسجيل الدخول وحفظ البيانات في السحابة
+        window.login = async function() {
+            if (!myAuthUid) return;
+
+            const code = document.getElementById('emp-code').value.trim();
+            if (employeesInfo[code]) {
+                currentUserData = employeesInfo[code];
+                document.getElementById('login-error').classList.add('hidden');
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                
+                document.getElementById('user-name-display').innerText = currentUserData.name;
+                document.getElementById('user-role-display').innerText = currentUserData.role;
+                document.getElementById('user-avatar-display').innerText = currentUserData.emoji;
+
+                currentX = currentUserData.deskX;
+                currentY = currentUserData.deskY;
+                lastSentX = currentX;
+                lastSentY = currentY;
+
+                // رسم المكاتب الثابتة
+                drawStaticDesks();
+
+                // رسم شخصيتي فوراً محلياً لتسريع الاستجابة وعدم انتظار Firebase
+                updateAvatarsOnScreen();
+
+                try {
+                    // تسجيل وجود المستخدم في Firebase
+                    const userDocRef = doc(db, usersCollectionPath, myAuthUid);
+                    await setDoc(userDocRef, {
+                        uid: myAuthUid,
+                        name: currentUserData.name,
+                        emoji: currentUserData.emoji,
+                        x: currentX,
+                        y: currentY
+                    });
+                } catch (error) {
+                    console.error("خطأ في الصلاحيات (Firestore Rules):", error);
+                    // تنبيه المستخدم إذا نسي تعديل القواعد
+                    alert("تحذير: لا يمكن مزامنة حركتك مع الآخرين. يرجى التأكد من تغيير Firestore Rules إلى true.");
+                }
+
+                // بدء المزامنة
+                setupFirestoreListeners();
+                startGameLoop();
+                startPositionSync();
+
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
+            }
+        };
+
+        window.logout = async function() {
+            if (myAuthUid) {
+                await deleteDoc(doc(db, usersCollectionPath, myAuthUid));
+            }
+            location.reload();
+        };
+
+        // مسح المستخدم من الخادم عند إغلاق المتصفح
+        window.addEventListener('beforeunload', () => {
+            if (myAuthUid) {
+                deleteDoc(doc(db, usersCollectionPath, myAuthUid));
+            }
+        });
+
+        // 3. رسم المكاتب (لا تتغير)
+        function drawStaticDesks() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = ''; 
+            for (const key in employeesInfo) {
+                const emp = employeesInfo[key];
+                const desk = document.createElement('div');
+                desk.className = `absolute desk-zone rounded-lg flex items-center justify-center flex-col shadow-sm ${emp.color}`;
+                desk.style.width = '120px';
+                desk.style.height = '120px';
+                desk.style.left = `${emp.deskX}%`;
+                desk.style.top = `${emp.deskY}%`;
+                desk.innerHTML = `
+                    <div class="text-3xl opacity-50 mb-1">💻</div>
+                    <div class="text-xs font-bold text-gray-600 bg-white px-2 py-1 rounded shadow-sm">مكتب ${emp.name}</div>
+                `;
+                board.appendChild(desk);
+            }
+        }
+
+        // 4. الاستماع اللحظي للبيانات من Firebase
+        function setupFirestoreListeners() {
+            if (!myAuthUid) return;
+
+            // استماع لمواقع المستخدمين
+            onSnapshot(collection(db, usersCollectionPath), (snapshot) => {
+                const newActiveUsers = {};
+                snapshot.docs.forEach(docSnap => {
+                    const data = docSnap.data();
+                    newActiveUsers[data.uid] = data;
+                });
+                activeUsers = newActiveUsers;
+                updateAvatarsOnScreen();
+            }, (error) => {
+                console.error("خطأ في قراءة المستخدمين:", error);
+            });
+
+            // استماع للرسائل (جلب كل الرسائل وفلترتها محلياً كما تنص القواعد)
+            onSnapshot(collection(db, messagesCollectionPath), (snapshot) => {
+                const messagesList = [];
+                snapshot.docs.forEach(docSnap => {
+                    const msg = docSnap.data();
+                    msg.id = docSnap.id;
+                    
+                    // فلترة الرسائل التي تخصني فقط
+                    if ((msg.senderUid === myAuthUid && msg.receiverUid === activeChatUser?.uid) || 
+                        (msg.receiverUid === myAuthUid && msg.senderUid === activeChatUser?.uid)) {
+                        messagesList.push(msg);
+                    }
+                });
+
+                // ترتيب زمني
+                messagesList.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // عرض الرسائل الجديدة
+                messagesList.forEach(msg => {
+                    if (!loadedMessagesIds.has(msg.id)) {
+                        displayMessage(msg);
+                        loadedMessagesIds.add(msg.id);
+                    }
+                });
+            }, (error) => {
+                console.error("خطأ في قراءة الرسائل:", error);
+            });
+        }
+
+        // 5. تحديث الشاشة بناءً على البيانات اللحظية
+        function updateAvatarsOnScreen() {
+            const board = document.getElementById('game-board');
+            
+            // رسم/تحديث الآخرين
+            for (const uid in activeUsers) {
+                if (uid === myAuthUid) continue; // أنا أتحرك محلياً فوراً
+                
+                const user = activeUsers[uid];
+                let avatarEl = document.getElementById(`avatar-${uid}`);
+                
+                if (!avatarEl) {
+                    // إنشاء شخصية جديدة ظهرت
+                    avatarEl = document.createElement('div');
+                    avatarEl.id = `avatar-${uid}`;
+                    avatarEl.className = 'avatar absolute text-4xl transform -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center';
+                    avatarEl.innerHTML = `
+                        <div class="bg-white rounded-full shadow-md w-12 h-12 flex items-center justify-center relative">
+                            ${user.emoji}
+                            <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                        </div>
+                        <div class="text-[10px] bg-gray-800 text-white px-1 rounded mt-1">${user.name}</div>
+                    `;
+                    board.appendChild(avatarEl);
+                }
+                
+                // تحديث الموقع
+                avatarEl.style.left = `${user.x}%`;
+                avatarEl.style.top = `${user.y}%`;
+            }
+
+            // إزالة من خرج من النظام
+            const currentAvatars = document.querySelectorAll('.avatar');
+            currentAvatars.forEach(el => {
+                const id = el.id.replace('avatar-', '');
+                if (id !== 'my-avatar' && !activeUsers[id]) {
+                    el.remove();
+                }
+            });
+
+            // رسم شخصيتي إذا لم تكن موجودة
+            let myAvatar = document.getElementById('my-avatar');
+            if (!myAvatar) {
+                myAvatar = document.createElement('div');
+                myAvatar.id = 'my-avatar';
+                myAvatar.className = 'avatar absolute text-4xl transform -translate-x-1/2 -translate-y-1/2 z-20 flex flex-col items-center';
+                myAvatar.innerHTML = `
+                    <div class="bg-yellow-200 border-2 border-yellow-500 rounded-full shadow-lg w-12 h-12 flex items-center justify-center relative">
+                        ${currentUserData.emoji}
+                        <div class="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                    </div>
+                    <div class="text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded mt-1 shadow">أنت</div>
+                `;
+                board.appendChild(myAvatar);
+            }
+            
+            myAvatar.style.left = `${currentX}%`;
+            myAvatar.style.top = `${currentY}%`;
+            checkProximity();
+        }
+
+        // 6. الحركة والتفاعل المباشر
+        window.addEventListener('keydown', (e) => { keys[e.key] = true; });
+        window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+        function startGameLoop() {
+            if (keys['ArrowUp'] || keys['w']) currentY -= speed;
+            if (keys['ArrowDown'] || keys['s']) currentY += speed;
+            if (keys['ArrowLeft'] || keys['a']) currentX -= speed; 
+            if (keys['ArrowRight'] || keys['d']) currentX += speed;
+
+            if (currentX < 2) currentX = 2;
+            if (currentX > 98) currentX = 98;
+            if (currentY < 2) currentY = 2;
+            if (currentY > 98) currentY = 98;
+
+            let myAvatar = document.getElementById('my-avatar');
+            if(myAvatar){
+                myAvatar.style.left = `${currentX}%`;
+                myAvatar.style.top = `${currentY}%`;
+            }
+            checkProximity();
+            requestAnimationFrame(startGameLoop);
+        }
+
+        function startPositionSync() {
+            // نرسل التحديث لفايربيس كل 200 ملي ثانية (لتخفيف الضغط على قاعدة البيانات)
+            syncInterval = setInterval(async () => {
+                if (currentX !== lastSentX || currentY !== lastSentY) {
+                    lastSentX = currentX;
+                    lastSentY = currentY;
+                    await updateDoc(doc(db, usersCollectionPath, myAuthUid), {
+                        x: currentX,
+                        y: currentY
+                    });
+                }
+            }, 200);
+        }
+
+        window.startMove = function(dir) {
+            clearInterval(moveInterval);
+            moveInterval = setInterval(() => {
+                if (dir === 'up') currentY -= speed;
+                if (dir === 'down') currentY += speed;
+                if (dir === 'left') currentX -= speed; 
+                if (dir === 'right') currentX += speed; 
+            }, 50);
+        }
+        window.stopMove = function() { clearInterval(moveInterval); }
+
+        function checkProximity() {
+            let foundSomeone = false;
+            
+            for (const uid in activeUsers) {
+                if (uid === myAuthUid) continue;
+
+                const user = activeUsers[uid];
+                const dx = currentX - user.x; 
+                const dy = currentY - user.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 8) {
+                    activeChatUser = user; // حفظ بيانات المستخدم الذي نقف بجواره
+                    document.getElementById('action-name').innerText = user.name;
+                    document.getElementById('action-btn').classList.remove('hidden');
+                    foundSomeone = true;
+                    break;
+                }
+            }
+
+            if (!foundSomeone) {
+                document.getElementById('action-btn').classList.add('hidden');
+            }
+        }
+
+        // 7. نظام المحادثة السحابي
+        window.openChat = function() {
+            if (!activeChatUser) return;
+            document.getElementById('chat-window').classList.remove('hidden');
+            document.getElementById('chat-title').innerText = activeChatUser.name;
+            document.getElementById('chat-emoji').innerText = activeChatUser.emoji;
+            document.getElementById('action-btn').classList.add('hidden');
+            
+            // تفريغ الرسائل السابقة وإعادة تفعيل المستمع
+            document.getElementById('chat-messages').innerHTML = '<div class="text-center text-xs text-gray-400 my-2">بدء المحادثة السحابية</div>';
+            loadedMessagesIds.clear(); 
+            // قراءة الرسائل سيتم عبر onSnapshot التلقائي
+        }
+
+        window.closeChat = function() {
+            document.getElementById('chat-window').classList.add('hidden');
+            activeChatUser = null;
+            loadedMessagesIds.clear();
+        }
+
+        window.handleChatEnter = function(e) {
+            if (e.key === 'Enter') window.sendMessage();
+        }
+
+        window.sendMessage = async function() {
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text || !activeChatUser) return;
+
+            input.value = ''; // تفريغ الحقل بسرعة
+
+            // إرسال الرسالة إلى Firestore
+            try {
+                await addDoc(collection(db, messagesCollectionPath), {
+                    senderUid: myAuthUid,
+                    senderName: currentUserData.name,
+                    receiverUid: activeChatUser.uid,
+                    text: text,
+                    timestamp: Date.now()
+                });
+            } catch (error) {
+                console.error("خطأ في إرسال الرسالة", error);
+            }
+        }
+
+        function displayMessage(msg) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const isMe = msg.senderUid === myAuthUid;
+
+            const msgHTML = `
+                <div class="flex ${isMe ? 'justify-start' : 'justify-end'}">
+                    <div class="${isMe ? 'bg-blue-100 text-blue-900 rounded-tr-none' : 'bg-white border text-gray-800 rounded-tl-none'} px-3 py-2 rounded-lg max-w-[80%] text-sm shadow-sm">
+                        ${!isMe ? `<span class="text-xs font-bold block mb-1 text-gray-500">${msg.senderName}</span>` : ''}
+                        ${msg.text}
+                    </div>
+                </div>
+            `;
+            messagesDiv.innerHTML += msgHTML;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+    </script>
 </body>
 </html>
